@@ -1,4 +1,4 @@
-"""Ponto de entrada: Asphalt 9 Club Manager para Discord."""
+"""Ponto de entrada — hospedagem Discloud: `python main.py`."""
 
 from __future__ import annotations
 
@@ -42,20 +42,20 @@ async def reminder_loop(bot: Asphalt9Bot) -> None:
 async def main() -> None:
     settings = load_settings()
     if not settings.token:
-        log.error("Defina DISCORD_TOKEN no arquivo .env (veja .env.example).")
+        log.error("Defina DISCORD_TOKEN (e na Discloud nas variáveis do app).")
         sys.exit(1)
+    if not settings.guild_id or not settings.panel_channel_id:
+        log.warning(
+            "Recomendado: DISCORD_GUILD_ID e PANEL_CHANNEL_ID para instalar o painel automaticamente."
+        )
 
     db = Database()
     bot = Asphalt9Bot(settings, db)
 
-    @bot.event
-    async def on_ready() -> None:
-        log.info("Logado como %s (%s)", bot.user, bot.user.id if bot.user else "?")
-
     @bot.tree.error
     async def on_tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        log.exception("Erro em comando slash: %s", error)
-        msg = "Ocorreu um erro ao executar o comando."
+        log.exception("Erro slash: %s", error)
+        msg = "Erro ao executar."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
         else:

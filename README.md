@@ -1,53 +1,56 @@
-# Asphalt 9 — Bot Discord para gestão de clube
+# Legião Espartan — Painel Discord (Asphalt 9)
 
-Bot em **Python** com **discord.py**, **comandos slash** (90+) e persistência **SQLite** (`aiosqlite`). Pensado para equipes de **Asphalt 9 Legends**: reputação semanal, eventos com RSVP, recrutamento, metas, garagem, histórico de guerras/GP, treinos, tarefas, enquetes, lembretes e moderação leve com auditoria.
+Bot focado em **um centro de comando visual**: **painel fixo** no canal configurado, com **dois selects** (área → ação) e **formulários (modais)** para entrada de dados. **100 funções** mapeadas em `legion_actions.py` e tratadas em `panel.py`.
 
-## Requisitos
+**Não** há dezenas de comandos slash para memorizar: o fluxo normal é só **abrir o painel** e navegar pelos menus. Existe apenas **`/painel`** (staff) para **recuperação** se a mensagem fixa for apagada.
 
-- Python 3.10+
-- Conta de aplicação no [Discord Developer Portal](https://discord.com/developers/applications) com bot e escopo **applications.commands**
+## Logo “animado” (Legião Espartan)
 
-## Instalação rápida
+O Discord **não anima** várias imagens dentro de um único embed ao mesmo tempo. O efeito de animação é feito assim:
+
+1. Defina **`PANEL_LOGO_URLS`** com **várias URLs** (GIF ou PNG), **separadas por vírgula** — por exemplo frames exportados do seu logo animado.
+2. O bot **alterna o thumbnail** do embed do painel a cada **`LOGO_CYCLE_SECONDS`** segundos (com **mais de uma** URL configurada).
+
+Hospede os ficheiros (Imgur, CDN, anexo Discord copiando URL, etc.) e cole as URLs na variável.
+
+## Variáveis de ambiente (Discloud)
+
+| Variável | Uso |
+|----------|-----|
+| `DISCORD_TOKEN` | Token do bot (obrigatório) |
+| `DISCORD_GUILD_ID` | ID do servidor (recomendado) |
+| `PANEL_CHANNEL_ID` | Canal onde o painel fica **fixo** (recomendado) |
+| `BOT_OWNER_IDS` | IDs dos donos (separados por vírgula) — ações “dono” + repostar painel |
+| `LEGION_NAME` | Título do painel (ex.: Legião Espartan) |
+| `PANEL_LOGO_URLS` | URLs dos frames do logo, separadas por vírgula |
+| `LOGO_CYCLE_SECONDS` | Intervalo da rotação do thumbnail (2–60) |
+| `BOT_NAME` | Nome interno / rodapé |
+
+Na **Discloud**, configure estas variáveis no painel do aplicativo. O ficheiro `discloud.config` aponta `MAIN=main.py`, `TYPE=bot`, `RAM=512`, `VERSION=3.11`.
+
+## Execução local
 
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-# Edite .env: DISCORD_TOKEN e, opcionalmente, DISCORD_GUILD_ID e BOT_OWNER_IDS
+# Edite .env
 python main.py
 ```
 
-### Variáveis de ambiente
+## Permissões Discord
 
-| Variável | Obrigatório | Descrição |
-|----------|-------------|-----------|
-| `DISCORD_TOKEN` | Sim | Token do bot |
-| `DISCORD_GUILD_ID` | Não | Se preenchido, sincroniza comandos só nesse servidor (útil em desenvolvimento) |
-| `BOT_OWNER_IDS` | Não | IDs separados por vírgula — acesso a `/admin_*` |
-| `BOT_NAME` | Não | Nome exibido em `/sobre` |
+- Bot: `applications.commands`, ver canais, enviar mensagens, embeds, ler histórico.
+- Membros com **Gerenciar servidor** usam ações de staff no painel.
+- **Administrador** para ações marcadas como admin.
+- **IDs em `BOT_OWNER_IDS`** para diagnóstico e **repostar painel**.
 
-## Permissões sugeridas no Discord
+## Persistência
 
-No mínimo: ver canais, enviar mensagens, incorporar links, ler histórico. Para `/limpar_mensagens`: **Gerenciar mensagens**. Comandos de staff usam **Gerenciar servidor** ou **Administrador** conforme o comando.
+SQLite em `asphalt9_club.sqlite3` (criado automaticamente). Na Discloud o disco persiste conforme o plano.
 
-## Módulos de comandos (resumo)
+## Estrutura
 
-- **Meta:** `/ajuda`, `/ping`, `/sobre`, `/convite_bot`, `/info_servidor`, `/stats_bot`
-- **Clube:** `/clube_config`, `/clube_nome`, `/clube_tag`, `/clube_fuso`, canais padrão, regras, resumo
-- **Membros:** registro, perfil, listagem, cargo interno, IGN, histórico, notas, exportação, busca por IGN
-- **Reputação:** adicionar/remover/definir semana, rankings, reset semanal, `/meu_rep`
-- **Eventos:** criar, listar, apagar, RSVP, participantes, divulgar no canal
-- **Moderação:** strikes, lista negra, auditoria
-- **Recrutamento:** candidatura, triagem, modelo de texto
-- **Metas:** criar, listar, progresso, apagar
-- **Garagem:** JSON flexível por membro, poder, templates de carros
-- **Engajamento:** anúncios, lembretes, enquetes, papéis de escalação, check-in
-- **Competitivo:** guerras, treinos, patrocínios, tarefas, dicas
-- **Admin:** sync de comandos, diagnóstico de banco, broadcast, embed rápido, limpeza de canal, whois, membros por cargo
-
-## Dados
-
-O arquivo `asphalt9_club.sqlite3` é criado automaticamente na primeira execução.
-
-## Licença
-
-Uso interno do projeto; adapte conforme a política da sua equipe.
+- `legion_actions.py` — 100 ações (5 categorias × 20)
+- `panel.py` — views persistentes, embed, dispatch, modais
+- `database.py` — dados do clube + `panel_message_id` e estado do logo
+- `cogs/painel.py` — comando `/painel` (opcional / recuperação)

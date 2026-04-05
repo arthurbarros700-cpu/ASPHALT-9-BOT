@@ -22,6 +22,7 @@ class Database:
         self._db.row_factory = aiosqlite.Row
         await self._db.execute("PRAGMA foreign_keys = ON;")
         await self._init_schema()
+        await self._migrate_guild_config_columns()
 
     async def close(self) -> None:
         await self._db.close()
@@ -38,7 +39,10 @@ class Database:
                 event_channel_id INTEGER,
                 recruit_channel_id INTEGER,
                 rules_text TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                panel_message_id INTEGER,
+                panel_logo_index INTEGER DEFAULT 0,
+                panel_logo_urls_json TEXT
             );
 
             CREATE TABLE IF NOT EXISTS members (
@@ -242,6 +246,22 @@ class Database:
         )
         await self._db.commit()
 
+    async def _migrate_guild_config_columns(self) -> None:
+        cur = await self._db.execute("PRAGMA table_info(guild_config)")
+        rows = await cur.fetchall()
+        names = {r[1] for r in rows}
+        alters: list[str] = []
+        if "panel_message_id" not in names:
+            alters.append("ALTER TABLE guild_config ADD COLUMN panel_message_id INTEGER")
+        if "panel_logo_index" not in names:
+            alters.append("ALTER TABLE guild_config ADD COLUMN panel_logo_index INTEGER DEFAULT 0")
+        if "panel_logo_urls_json" not in names:
+            alters.append("ALTER TABLE guild_config ADD COLUMN panel_logo_urls_json TEXT")
+        for sql in alters:
+            await self._db.execute(sql)
+        if alters:
+            await self._db.commit()
+
     async def audit(self, guild_id: int, actor_id: int, action: str, payload: dict | None = None) -> None:
         await self._db.execute(
             "INSERT INTO audit_log (guild_id, actor_id, action, payload, created_at) VALUES (?,?,?,?,?)",
@@ -310,6 +330,31 @@ class Database:
             (text, guild_id),
         )
         await self._db.commit()
+
+    async def set_panel_message(self, guild_id: int, message_id: int | None) -> None:
+        await self._db.execute(
+            "UPDATE guild_config SET panel_message_id = ? WHERE guild_id = ?",
+            (message_id, guild_id),
+        )
+        await self._db.commit()
+
+    async def get_panel_message_id(self, guild_id: int) -> int | None:
+        cfg = await self.get_guild_config(guild_id)
+        mid = cfg.get("panel_message_id")
+        return int(mid) if mid is not None else None
+
+    async def set_panel_logo_state(self, guild_id: int, frame_index: int, urls_json: str | None) -> None:
+        await self._db.execute(
+            "UPDATE guild_config SET panel_logo_index = ?, panel_logo_urls_json = ? WHERE guild_id = ?",
+            (frame_index, urls_json, guild_id),
+        )
+        await self._db.commit()
+
+    async def get_panel_logo_state(self, guild_id: int) -> tuple[int, str | None]:
+        cfg = await self.get_guild_config(guild_id)
+        idx = int(cfg.get("panel_logo_index") or 0)
+        raw = cfg.get("panel_logo_urls_json")
+        return idx, raw if isinstance(raw, str) else None
 
     async def upsert_member(
         self,
